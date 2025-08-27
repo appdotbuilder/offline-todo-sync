@@ -1,39 +1,53 @@
+import { db } from '../db';
+import { todosTable } from '../db/schema';
 import { type GetTodosInput, type Todo } from '../schema';
+import { eq, and, gte, lte, SQL } from 'drizzle-orm';
 
 export const getTodos = async (input: GetTodosInput): Promise<Todo[]> => {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is fetching todos for a specific user with optional filtering
-    // Should support filtering by category, completion status, due dates, priority
-    // Should support incremental sync by returning only todos modified after last_synced_after
-    // Should include related category data if needed
-    return Promise.resolve([
-        {
-            id: 1,
-            user_id: input.user_id,
-            category_id: 1,
-            title: 'Sample Todo 1',
-            description: 'This is a sample todo item',
-            is_completed: false,
-            due_date: new Date(Date.now() + 86400000), // Due tomorrow
-            priority: 'high',
-            created_at: new Date(),
-            updated_at: new Date(),
-            last_synced_at: new Date(),
-            client_updated_at: new Date()
-        },
-        {
-            id: 2,
-            user_id: input.user_id,
-            category_id: null,
-            title: 'Sample Todo 2',
-            description: null,
-            is_completed: true,
-            due_date: null,
-            priority: 'low',
-            created_at: new Date(),
-            updated_at: new Date(),
-            last_synced_at: new Date(),
-            client_updated_at: new Date()
-        }
-    ] as Todo[]);
+  try {
+    // Build conditions array for filtering
+    const conditions: SQL<unknown>[] = [];
+    
+    // Always filter by user_id (required)
+    conditions.push(eq(todosTable.user_id, input.user_id));
+    
+    // Optional filters
+    if (input.category_id !== undefined) {
+      conditions.push(eq(todosTable.category_id, input.category_id));
+    }
+    
+    if (input.is_completed !== undefined) {
+      conditions.push(eq(todosTable.is_completed, input.is_completed));
+    }
+    
+    if (input.due_before !== undefined) {
+      conditions.push(lte(todosTable.due_date, input.due_before));
+    }
+    
+    if (input.due_after !== undefined) {
+      conditions.push(gte(todosTable.due_date, input.due_after));
+    }
+    
+    if (input.priority !== undefined) {
+      conditions.push(eq(todosTable.priority, input.priority));
+    }
+    
+    // For incremental sync - return only todos modified after the given timestamp
+    if (input.last_synced_after !== undefined) {
+      conditions.push(gte(todosTable.client_updated_at, input.last_synced_after));
+    }
+    
+    // Build the complete query with all conditions
+    const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+    const results = await db.select()
+      .from(todosTable)
+      .where(whereClause)
+      .execute();
+    
+    // Return results (no type conversion needed as all fields are already correct types)
+    return results;
+  } catch (error) {
+    console.error('Failed to fetch todos:', error);
+    throw error;
+  }
 };

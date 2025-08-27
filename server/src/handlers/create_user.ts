@@ -1,18 +1,29 @@
+import { db } from '../db';
+import { usersTable } from '../db/schema';
 import { type CreateUserInput, type User } from '../schema';
+import { nanoid } from 'nanoid';
 
 export const createUser = async (input: CreateUserInput): Promise<User> => {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is creating a new user account and persisting it in the database.
-    // Should handle both Google OAuth and email/password registration
-    // Should generate unique user ID and set appropriate timestamps
-    return Promise.resolve({
-        id: `user_${Date.now()}`, // Placeholder ID generation
+  try {
+    // Generate unique user ID
+    const userId = `user_${nanoid(12)}`;
+    
+    // Insert user record
+    const result = await db.insert(usersTable)
+      .values({
+        id: userId,
         email: input.email,
         name: input.name,
         avatar_url: input.avatar_url || null,
         auth_provider: input.auth_provider,
-        is_admin: input.is_admin || false,
-        created_at: new Date(),
-        updated_at: new Date()
-    } as User);
+        is_admin: input.is_admin || false
+      })
+      .returning()
+      .execute();
+
+    return result[0];
+  } catch (error) {
+    console.error('User creation failed:', error);
+    throw error;
+  }
 };

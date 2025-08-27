@@ -1,8 +1,24 @@
+import { db } from '../db';
+import { usersTable } from '../db/schema';
+import { eq } from 'drizzle-orm';
+
 export const verifyAdmin = async (userId: string): Promise<boolean> => {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is verifying that a user has admin privileges
-    // Should query the database to check the user's is_admin flag
-    // Returns true if user is admin, false otherwise
-    // Used by other admin-only handlers to authorize actions
-    return Promise.resolve(false); // Placeholder - no admin access by default
+  try {
+    // Query the user from the database
+    const users = await db.select()
+      .from(usersTable)
+      .where(eq(usersTable.id, userId))
+      .execute();
+
+    // If user doesn't exist, they're not an admin
+    if (users.length === 0) {
+      return false;
+    }
+
+    // Return the user's admin status
+    return users[0].is_admin;
+  } catch (error) {
+    console.error('Admin verification failed:', error);
+    throw error;
+  }
 };
